@@ -207,12 +207,21 @@ def parse_docstring(dstring):
     # Looking for tags and parsing them
     dvars = re.findall('@([^:]+):\s*([^@]+)', broken[0])
     for key, val in dvars:
+        # Tag param is different from others
         rkey = key.split(' ')[0]
+
         # If we don't know a tag, we just make user aware, there is no
         # need to stop anything.
         try:
-            parsed = getattr(tags, 'tag_%s' % rkey)(val)
-            if key == 'param':
+            if rkey == 'param':
+                # We're parsing parameter tags here that has a special
+                # syntax. We have to remove the tag name `param' from
+                # the key and send both key and value separated by a
+                # `:' to the tag parser. Not sure why I'm using
+                # getattr here anyway.
+                pval = key.split(' ', 1)[1]
+                parsed = getattr(tags, 'tag_%s' % rkey)('%s: %s' % (pval, val))
+
                 # Creating the list that will hold found
                 # parameters. This will only be present when finding
                 # at least one @param tag and it should only happen in
@@ -221,6 +230,7 @@ def parse_docstring(dstring):
                     ret['params'] = []
                 ret['params'].append(parsed)
             else:
+                parsed = getattr(tags, 'tag_%s' % rkey)(val)
                 # Handling all other tags that are just a new entry in
                 # the return dict.
                 ret[key] = parsed
