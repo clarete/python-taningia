@@ -19,8 +19,10 @@
 # Boston, MA 02111-1307, USA.
 
 import sys
-from scanner import scan_files, purge_lib_prefix, purge_type_sufix
+import os
+from scanner import scan_file, purge_lib_prefix, purge_type_sufix
 from pybindgen import FileCodeSink, Module, retval, param, cppclass
+from pybindgen.module import SubModule
 
 def underscore_to_camel(name):
     nname = ''
@@ -38,101 +40,117 @@ def underscore_to_camel(name):
         i += 1
     return nname
 
-def main():
-    modules = scan_files(sys.argv[1:])
-    for m in modules:
-        module = modules[m]
-        print "Processing module `%s'" % m
+def load_module(module, parent):
+    print "Processing module `%s'" % module['name']
+    mod = SubModule(module['name'], parent)
 
-        mod = Module(m)
-        mod.add_include('<taningia/log.h>')
+    for enum in module['enums']:
+        print " - enum `%s'" % enum['name']
+        mod.add_enum(enum['name'], enum['entries'])
 
-        for enum in module['enums']:
-            print " - enum `%s'" % enum['name']
-            mod.add_enum(enum['name'], enum['entries'])
+    for ctype in module['types']:
+        ktype = module['types'][ctype]
 
-        for ctype in module['types']:
-            ktype = module['types'][ctype]
+        # Preparing the custom name of our class. All pedantic C
+        # namespace and type conventions are being purged and
+        # underscore style is replaced by camelcase style.
+        custom_name = purge_lib_prefix(ktype['cname'])
+        custom_name = purge_type_sufix(custom_name)
+        custom_name = underscore_to_camel(custom_name)
 
-            # Preparing the custom name of our class. All pedantic C
-            # namespace and type conventions are being purged and
-            # underscore style is replaced by camelcase style.
-            custom_name = purge_lib_prefix(ktype['cname'])
-            custom_name = purge_type_sufix(custom_name)
-            custom_name = underscore_to_camel(custom_name)
+        print " - class `%s'" % custom_name
 
-            print " - class `%s'" % custom_name
+        # Preparing vars to receive constructor, destructor and
+        # other ordinary methods of our class.
+        constructor = None
+        destructor = None
+        methods = []
 
-            # Preparing vars to receive constructor, destructor and
-            # other ordinary methods of our class.
-            constructor = None
-            destructor = None
-            methods = []
+        # Separating constructor, destructor and other ordinary
+        # methods.
+        for method in ktype['methods']:
+            print "  * method `%s'" % method['name']['name']
+            cname = '%(class)s_%(name)s' % method['name']
+            method['cname'] = cname
 
-            # Separating constructor, destructor and other ordinary
-            # methods.
-            for method in ktype['methods']:
-                print "  * method `%s'" % method['name']['name']
-                cname = '%(class)s_%(name)s' % method['name']
-                method['cname'] = cname
+            if method['type']['name'] == 'constructor':
+                constructor = method
+            elif method['type']['name'] == 'destructor':
+                destructor = cppclass.FreeFunctionPolicy(cname)
+            else:
+                if method['name']['name'] == 'set_handler':
+                    continue
+                methods.append(method)
 
-                if method['type']['name'] == 'constructor':
-                    constructor = method
-                elif method['type']['name'] == 'destructor':
-                    destructor = cppclass.FreeFunctionPolicy(cname)
+        # Time to create our class!
+        klass = mod.add_class(
+            ktype['cname'],
+            memory_policy=destructor,
+            custom_name=custom_name)
+
+        # And set its constructor.
+        klass.add_function_as_constructor(
+            constructor['cname'],
+            retval(constructor['rtype']),
+            [param(x['type'], x['name']) for x in constructor['params']])
+
+        # Adding other ordinary methods
+        for i in methods:
+            params = []
+            for index, item in enumerate(i['params']):
+                if item['type'] == 'varargs':
+                    # Do not handling this will not hurt anything, we
+                    # have only string formatting being done with it.
+                    continue
+                if index != 0:
+                    # Ordinary parameters
+                    params.append(param(item['type'], item['name']))
                 else:
-                    if method['name']['name'] == 'set_handler':
-                        continue
-                    methods.append(method)
+                    # This is the first parameter of a method, the
+                    # `self' one. Because of it we pass
+                    # transfer_ownership set to False.
+                    params.append(param(item['type'], item['name'],
+                                        transfer_ownership=False))
 
-            # Time to create our class!
-            klass = mod.add_class(
-                ktype['cname'],
-                memory_policy=destructor,
-                custom_name=custom_name)
+            # Pretty function name. Nice to debug too.
+            fname = i['name']['name']
 
-            # And set its constructor.
-            klass.add_function_as_constructor(
-                constructor['cname'],
-                retval(constructor['rtype']),
-                [param(x['type'], x['name']) for x in constructor['params']])
+            # Preparing some extra parameters to control the memory
+            # management of the returned value of our method.
+            extra_params = {}
 
-            for i in methods:
-                params = []
-                for index, item in enumerate(i['params']):
-                    if item['type'] == 'varargs':
-                        continue
-                    if index != 0:
-                        params.append(param(item['type'], item['name']))
-                    else:
-                        params.append(param(item['type'], item['name'],
-                                            transfer_ownership=False))
+            if i['rtype'] == 'char *':
+                # I can do it here because all stuff that should not
+                # be free is marked as `constant' in the library.
+                extra_params.update({'caller_owns_return': True})
+            elif i['rtype'] in [('%s *' % x) for x in parent]:
+                # We really would implement reference counting in our
+                # objects.
+                extra_params.update({'reference_existing_object': True})
 
-                print i
-                klass.add_function_as_method(
-                    i['cname'], retval(i['rtype']), params,
-                    custom_name=i['name']['name'])
+            klass.add_function_as_method(
+                i['cname'],
+                retval(i['rtype'], **extra_params),
+                params,
+                custom_name=fname)
+    return mod
 
-        mod.generate(FileCodeSink(open('logmodule.c', 'w')))
+def main():
+    # Building main module
+    mainmod = Module('taningia')
+    mainmod.add_include('<taningia/taningia.h>')
 
-def gen(output):
-    mod = Module('log')
-    mod.add_include('<taningia/log.h>')
+    # Time to find submodules to add. Order is important here.
+    base = os.path.expanduser("~/Work/taningia/include/taningia/")
+    headers = ['error.h', 'log.h', 'iri.h', 'xmpp.h']
+    for i in headers:
+        module = scan_file(os.path.join(base, i))
+        load_module(module, mainmod)
 
-    destructor = cppclass.FreeFunctionPolicy('ta_log_free')
-    log = mod.add_class('ta_log_t', memory_policy=destructor,
-                        custom_name='Log')
-    log.add_function_as_constructor('ta_log_new',
-                                    retval('ta_log_t*',
-                                           caller_owns_return=True),
-                                    [param('const char*', 'domain_name')])
-
-    log.add_function_as_method('ta_log_info', None,
-                               [param('ta_log_t*', 'log', transfer_ownership=False),
-                                param('const char *', 'fmt')],
-                               custom_name='info')
-
-    mod.generate(FileCodeSink(output))
+    # Writing down all processed stuff and we're done!
+    output = open('taningiamodule.c', 'w')
+    mainmod.generate(FileCodeSink(output))
+    output.close()
 
 if __name__ == '__main__':
     main()
