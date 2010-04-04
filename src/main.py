@@ -20,6 +20,7 @@
 
 import sys
 import os
+import warnings
 from scanner import scan_file, purge_lib_prefix, purge_type_sufix
 from pybindgen import FileCodeSink, Module, retval, param, cppclass
 from pybindgen.module import SubModule
@@ -128,11 +129,15 @@ def load_module(module, parent):
                 # objects.
                 extra_params.update({'reference_existing_object': True})
 
-            klass.add_function_as_method(
-                i['cname'],
-                retval(i['rtype'], **extra_params),
-                params,
-                custom_name=fname)
+            try:
+                klass.add_function_as_method(
+                    i['cname'],
+                    retval(i['rtype'], **extra_params),
+                    params,
+                    custom_name=fname)
+            except:
+                warnings.warn('Skipping method %s, something wrong happened' %
+                              fname)
     return mod
 
 def main():
