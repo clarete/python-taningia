@@ -207,10 +207,11 @@ def parse_docstring(dstring):
     # Looking for tags and parsing them
     dvars = re.findall('@([^:]+):\s*([^@]+)', broken[0])
     for key, val in dvars:
+        rkey = key.split(' ')[0]
         # If we don't know a tag, we just make user aware, there is no
-        # need to stop everything.
+        # need to stop anything.
         try:
-            parsed = getattr(tags, 'tag_%s' % key)(val)
+            parsed = getattr(tags, 'tag_%s' % rkey)(val)
             if key == 'param':
                 # Creating the list that will hold found
                 # parameters. This will only be present when finding
