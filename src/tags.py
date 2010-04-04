@@ -21,8 +21,8 @@
 """
 
 __all__ = (
-    'tag_name', 'tag_type', 'tag_param', 'tag_raises', 'tag_super',
-    'tag_since', 'tag_see', 'tag_returns',
+    'tag_name', 'tag_type', 'tag_param', 'tag_raise', 'tag_super',
+    'tag_since', 'tag_see', 'tag_return',
 )
 
 def tag_name(value):
@@ -137,16 +137,16 @@ def tag_param(value):
     # Building return dict
     return dict(name=name.strip(), modifiers=modifiers, doc=doc)
 
-def tag_raises(value):
+def tag_raise(value):
     """Parser for the @raises tag.
 
     This simple parser splits the value by the ',' char and returns a
     stripped list containing the splitted values. Like this:
 
-     >>> tag_raises(' TA_ATOM_PARSING_ERROR')
+     >>> tag_raise(' TA_ATOM_PARSING_ERROR')
      ['TA_ATOM_PARSING_ERROR']
 
-     >>> tag_raises(' TA_ATOM_LOAD_ERROR, TA_ATOM_PARSING_ERROR')
+     >>> tag_raise(' TA_ATOM_LOAD_ERROR, TA_ATOM_PARSING_ERROR')
      ['TA_ATOM_LOAD_ERROR', 'TA_ATOM_PARSING_ERROR']
     """
     return [x.strip() for x in value.split(',')]
@@ -190,7 +190,7 @@ def tag_see(value):
     """
     return [x.strip() for x in value.split(',')]
 
-def tag_returns(value):
+def tag_return(value):
     """Parser for the @return tag.
 
     Return tag is provided when an unreachable information should be
@@ -202,13 +202,13 @@ def tag_returns(value):
     One use case for this tag is to inform the type of objects added
     in a list or in other kind of container. Like this::
 
-      >>> tag_returns(' ta_list (ta_atom_link)')
+      >>> tag_return(' ta_list (ta_atom_link)')
       {'containing': 'ta_atom_link', 'type': 'ta_list'}
 
     But other kind of information can be provided with @returns tag
     too, like in this example::
 
-      >>> tag_returns(' bool')
+      >>> tag_return(' bool')
       {'type': 'bool'}
     """
     ret = {}
