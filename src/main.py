@@ -86,6 +86,11 @@ def load_module(module, parent):
         destructor = None
         methods = []
 
+        # `Almost' all of our library types has refcounted memory
+        # policy, so the default is to do not have a destructor. We
+        # use the generic one, ta_object_unref.
+        destructor = None
+
         # Separating constructor, destructor and other ordinary
         # methods.
         for method in ktype['methods']:
@@ -93,19 +98,31 @@ def load_module(module, parent):
             cname = '%(class)s_%(name)s' % method['name']
             method['cname'] = cname
 
+            # C API specific stuff. We don't have to expose it.
+            if method['type']['name'] == 'initializer':
+                continue
             if method['type']['name'] == 'constructor':
                 constructor = method
             elif method['type']['name'] == 'destructor':
-                destructor = cppclass.FreeFunctionPolicy(cname)
+                # Overrides default destructor
+                destructor = cname
             else:
                 if method['name']['name'] == 'set_handler':
                     continue
                 methods.append(method)
 
+        if destructor is not None:
+            memory_policy = cppclass.FreeFunctionPolicy(destructor)
+        else:
+            memory_policy = cppclass.ReferenceCountingFunctionsPolicy(
+                  incref_function='ta_object_ref',
+                  decref_function='ta_object_unref',
+                  )
+
         # Time to create our class!
         klass = mod.add_class(
             ktype['cname'],
-            memory_policy=destructor,
+            memory_policy=memory_policy,
             custom_name=custom_name)
 
         # And set its constructor.
