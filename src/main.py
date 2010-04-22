@@ -41,6 +41,25 @@ def underscore_to_camel(name):
         i += 1
     return nname
 
+def handle_params(method, parent):
+    cparams = []
+    for index, item in enumerate(method['params']):
+        extra = {}
+
+        # Handling ownership in parameters of known types
+        if item['type'] in [('%s *' % x) for x in parent]:
+            extra.update({'transfer_ownership': False})
+
+        # Dealing with optional arguments
+        if 'optional' in item.get('modifiers', ()):
+            if '*' in item['type']:
+                extra.update({'default_value': 'NULL'})
+            elif item['type'] == 'int':
+                extra.update({'default_value': '0'})
+
+        cparams.append(param(item['type'], item['name'], **extra))
+    return cparams
+
 def load_module(module, parent):
     print "Processing module `%s'" % module['name']
     mod = SubModule(module['name'], parent)
@@ -93,26 +112,10 @@ def load_module(module, parent):
         klass.add_function_as_constructor(
             constructor['cname'],
             retval(constructor['rtype']),
-            [param(x['type'], x['name']) for x in constructor['params']])
+            handle_params(constructor, parent))
 
         # Adding other ordinary methods
         for i in methods:
-            params = []
-            for index, item in enumerate(i['params']):
-                if item['type'] == 'varargs':
-                    # Do not handling this will not hurt anything, we
-                    # have only string formatting being done with it.
-                    continue
-                if index != 0:
-                    # Ordinary parameters
-                    params.append(param(item['type'], item['name']))
-                else:
-                    # This is the first parameter of a method, the
-                    # `self' one. Because of it we pass
-                    # transfer_ownership set to False.
-                    params.append(param(item['type'], item['name'],
-                                        transfer_ownership=False))
-
             # Pretty function name. Nice to debug too.
             fname = i['name']['name']
 
@@ -133,7 +136,7 @@ def load_module(module, parent):
                 klass.add_function_as_method(
                     i['cname'],
                     retval(i['rtype'], **extra_params),
-                    params,
+                    handle_params(i, parent),
                     custom_name=fname)
             except:
                 warnings.warn('Skipping method %s, something wrong happened' %
