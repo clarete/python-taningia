@@ -238,14 +238,11 @@ def load_module(module, parent):
     return mod
 
 def main():
-    output = open('taningiamodule.c', 'w')
-    lib = FileCodeSink(output)
-    lib.writeln(DATE_CONVERTERS)
-
     # Building main module
     mainmod = Module('taningia')
     mainmod.add_include('<datetime.h>')
     mainmod.add_include('<taningia/taningia.h>')
+    mainmod.after_forward_declarations.writeln(DATE_CONVERTERS)
     mainmod.before_init.write_code('PyEval_InitThreads ();')
     mainmod.before_init.write_code('PyDateTime_IMPORT;')
 
@@ -257,7 +254,8 @@ def main():
         load_module(module, mainmod)
 
     # Writing down all processed stuff and we're done!
-    mainmod.generate(lib)
+    output = open('taningiamodule.c', 'w')
+    mainmod.generate(FileCodeSink(output))
     output.close()
 
 if __name__ == '__main__':
