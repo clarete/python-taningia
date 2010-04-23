@@ -24,7 +24,84 @@ import warnings
 from scanner import scan_file, purge_lib_prefix, purge_type_sufix
 from pybindgen import FileCodeSink, Module, retval, param, cppclass
 from pybindgen.module import SubModule
+from pybindgen.typehandlers.base import ReturnValue, Parameter
 
+DATE_CONVERTERS = '''
+static time_t
+convert_from_date (PyObject *val)
+{
+  time_t retval = 0;
+
+  if (val == Py_None)
+    retval = 0;
+  else
+    {
+      struct tm mtm;
+      mtm.tm_sec = PyDateTime_DATE_GET_SECOND (val);
+      mtm.tm_min = PyDateTime_DATE_GET_MINUTE (val);
+      mtm.tm_hour = PyDateTime_DATE_GET_HOUR (val);
+      mtm.tm_mday = PyDateTime_GET_DAY (val);
+      mtm.tm_mon = PyDateTime_GET_MONTH (val) - 1;    /* Month starts from 0 */
+      mtm.tm_year = PyDateTime_GET_YEAR (val) - 1900; /* see `man mktime'    */
+      mtm.tm_isdst = -1;
+      mtm.tm_gmtoff = 1;
+      if ((retval = mktime (&mtm)) == -1)
+        {
+          /* Invalid date, should be handled by the caller */
+          retval = -1;
+        }
+    }
+  return retval;
+}
+
+static PyObject *
+convert_to_date (time_t val)
+{
+  if (val == 0)
+    {
+      Py_INCREF (Py_None);
+      return Py_None;
+    }
+  else
+    {
+      struct tm *ctm = localtime (&val);
+      PyObject *date = PyDateTime_FromDateAndTime (1900 + ctm->tm_year,
+                                                   ctm->tm_mon + 1,
+                                                   ctm->tm_mday,
+                                                   ctm->tm_hour,
+                                                   ctm->tm_min,
+                                                   ctm->tm_sec,
+                                                   0);
+      Py_INCREF (date);
+      return date;
+    }
+}
+'''
+
+class TimeTParameter(Parameter):
+
+    DIRECTIONS = [Parameter.DIRECTION_IN]
+    CTYPES = ['time_t']
+
+    def convert_python_to_c(self, wrapper):
+        pyobj = wrapper.declarations.declare_variable('PyObject*', 'pydtime');
+        dobj = wrapper.declarations.declare_variable('time_t', 'dtime', '0');
+        wrapper.before_call.write_code('dtime = convert_from_date (pydtime);')
+        wrapper.parse_params.add_parameter('O', ['&'+pyobj], self.value)
+        wrapper.call_params.append(dobj)
+
+class TimeTReturnValue(ReturnValue):
+
+    CTYPES = ['time_t']
+
+    def get_c_error_return(self):
+        return 'return NULL;'
+
+    def convert_c_to_python(self, wrapper):
+        name = wrapper.declarations.declare_variable('PyObject*', 'py_date')
+        wrapper.after_call.write_code('py_date = convert_to_date (retval);')
+        wrapper.build_params.add_parameter('O', ['py_date'], prepend=True)
+        
 def underscore_to_camel(name):
     nname = ''
     nsize = len(name)
@@ -161,20 +238,26 @@ def load_module(module, parent):
     return mod
 
 def main():
+    output = open('taningiamodule.c', 'w')
+    lib = FileCodeSink(output)
+    lib.writeln(DATE_CONVERTERS)
+
     # Building main module
     mainmod = Module('taningia')
+    mainmod.add_include('<datetime.h>')
     mainmod.add_include('<taningia/taningia.h>')
+    mainmod.before_init.write_code('PyEval_InitThreads ();')
+    mainmod.before_init.write_code('PyDateTime_IMPORT;')
 
     # Time to find submodules to add. Order is important here.
     base = os.path.expanduser("~/Work/taningia/include/taningia/")
-    headers = ['error.h', 'log.h', 'iri.h', 'xmpp.h']
+    headers = ['error.h', 'log.h', 'iri.h', 'xmpp.h', 'atom.h']
     for i in headers:
         module = scan_file(os.path.join(base, i))
         load_module(module, mainmod)
 
     # Writing down all processed stuff and we're done!
-    output = open('taningiamodule.c', 'w')
-    mainmod.generate(FileCodeSink(output))
+    mainmod.generate(lib)
     output.close()
 
 if __name__ == '__main__':
