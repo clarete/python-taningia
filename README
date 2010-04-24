@@ -1,0 +1,9 @@
+python bindings for taningia
+============================
+
+This is a very small project that aims to expose all taningia[0]
+features to the python language. To do it, we are using the
+PyBindGen[1] library.
+
+[0] http://projects.comum.org/taningia/
+[1] http://launchpad.net/pybindgen/
