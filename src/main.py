@@ -180,13 +180,28 @@ def load_module(module, parent):
         print " - enum `%s'" % enum['name']
         mod.add_enum(enum['name'], enum['entries'])
 
+    for func in module['functions']:
+        name = func['name']['name']
+        custom_name = name.replace('ta_%s_' % mod.name, '')
+
+        try:
+            mod.add_function(name,
+                             retval(func['rtype']),
+                             handle_params(func, parent),
+                             custom_name=custom_name)
+        except Exception, e:
+            warnings.warn('Skipping func %s, something wrong happened. %s' %
+                          (name, str(e)))
+
     for ctype in module['types']:
         ktype = module['types'][ctype]
 
         # Preparing the custom name of our class. All pedantic C
         # namespace and type conventions are being purged and
         # underscore style is replaced by camelcase style.
-        custom_name = purge_lib_prefix(ktype['cname'])
+
+        custom_name = ktype['cname'].replace(module['name'] + '_', '')
+        custom_name = purge_lib_prefix(custom_name)
         custom_name = purge_type_sufix(custom_name)
         custom_name = underscore_to_camel(custom_name)
 
@@ -271,9 +286,9 @@ def load_module(module, parent):
                     retval(i['rtype'], **extra_params),
                     handle_params(i, parent),
                     custom_name=fname)
-            except:
-                warnings.warn('Skipping method %s, something wrong happened' %
-                              fname)
+            except Exception, e:
+                warnings.warn('Skipping method %s, something wrong happened. %s' %
+                              (fname, str(e)))
     return mod
 
 def main():
@@ -287,7 +302,7 @@ def main():
 
     # Time to find submodules to add. Order is important here.
     base = os.path.expanduser("~/Work/taningia/include/taningia/")
-    headers = ['error.h', 'log.h', 'iri.h', 'xmpp.h', 'atom.h']
+    headers = ['error.h', 'log.h', 'iri.h', 'xmpp.h', 'atom.h', 'pubsub.h']
     for i in headers:
         module = scan_file(os.path.join(base, i))
         load_module(module, mainmod)
