@@ -101,6 +101,36 @@ class TimeTReturnValue(ReturnValue):
         name = wrapper.declarations.declare_variable('PyObject*', 'py_date')
         wrapper.after_call.write_code('py_date = convert_to_date (retval);')
         wrapper.build_params.add_parameter('O', ['py_date'], prepend=True)
+
+class ListTReturnValue(ReturnValue):
+
+    CTYPES = ['ta_list_t*']
+
+
+    def __init__(self, ctype, is_const=False, contained_type=None):
+        super(ListTReturnValue, self).__init__(ctype, is_const)
+        self.contained_type = contained_type
+
+    def get_c_error_return(self):
+        return 'return NULL;'
+
+    def convert_c_to_python(self, wrapper):
+        template = '''py_list = PyList_New (0);
+if (!py_list)
+  return NULL;
+for (tmp = retval; tmp; tmp = tmp->next) {
+    %(pystruct)s *pyobj;
+    pyobj = PyObject_New (%(pystruct)s, &%(pytypestruct)s);
+    pyobj->obj = tmp->data;
+    PyList_Append (py_list, (PyObject*) pyobj);
+}
+'''
+        wrapper.declarations.declare_variable('PyObject*', 'py_list', 'NULL')
+        wrapper.declarations.declare_variable('ta_list_t*', 'tmp', 'NULL')
+        wrapper.after_call.write_code(template % {
+                'pystruct':self.contained_type.pystruct,
+                'pytypestruct': self.contained_type.pytypestruct})
+        wrapper.build_params.add_parameter('O', ['py_list'], prepend=True)
         
 def underscore_to_camel(name):
     nname = ''
@@ -225,6 +255,10 @@ def load_module(module, parent):
                 # We really would implement reference counting in our
                 # objects.
                 extra_params.update({'reference_existing_object': True})
+            elif i['rtype'] == 'ta_list_t *':
+                containing = i['return']['containing']
+                containing_type = mod.parent[containing+'_t']
+                extra_params.update({'contained_type': containing_type})
 
             try:
                 klass.add_function_as_method(
