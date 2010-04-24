@@ -153,6 +153,11 @@ def handle_params(method, parent):
     for index, item in enumerate(method['params']):
         extra = {}
 
+        # Do not handling this will not hurt anything, we have only
+        # string formatting being done with it.
+        if item['type'] == 'varargs':
+            continue
+
         # Handling ownership in parameters of known types
         if item['type'] in [('%s *' % x) for x in parent]:
             extra.update({'transfer_ownership': False})
