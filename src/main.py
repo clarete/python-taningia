@@ -21,6 +21,7 @@
 import sys
 import os
 import warnings
+import iksbind
 from scanner import scan_file, purge_lib_prefix, purge_type_sufix
 from pybindgen import FileCodeSink, Module, retval, param, cppclass
 from pybindgen.module import SubModule
@@ -186,7 +187,7 @@ def load_module(module, parent):
 
         try:
             mod.add_function(name,
-                             retval(func['rtype']),
+                             retval(func['rtype'], caller_owns_return=True),
                              handle_params(func, parent),
                              custom_name=custom_name)
         except Exception, e:
@@ -299,6 +300,8 @@ def main():
     mainmod.after_forward_declarations.writeln(DATE_CONVERTERS)
     mainmod.before_init.write_code('PyEval_InitThreads ();')
     mainmod.before_init.write_code('PyDateTime_IMPORT;')
+
+    iksbind.gen_mod(mainmod)
 
     # Time to find submodules to add. Order is important here.
     base = os.path.expanduser("~/Work/taningia/include/taningia/")
