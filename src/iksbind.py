@@ -112,16 +112,23 @@ def add_classes(mod):
         )
 
 def add_functions(mod):
-    return
-    mod.add_function('iks_make_session', retval('void'), [],
-                     custom_name='make_msg')
+    mod.add_function('iks_make_session',
+                     retval('iks*', caller_owns_return=True),
+                     [], custom_name='make_msg')
+
+    mod.add_function('iks_make_pres',
+                     retval('iks*', caller_owns_return=True),
+                     [param('int', 'show'),
+                      param('const char *', 'status')],
+                     custom_name='make_pres')
 
 def gen_mod(mod):
     submod = SubModule('iksemel', mod)
     submod.add_enum('ikstype', IKSTYPE)
     submod.add_enum('iksubtype', IKSUBTYPE)
-    add_functions(submod)
+    submod.add_enum('ikshowtype', IKSHOWTYPE)
     add_classes(submod)
+    add_functions(submod)
 
 def main():
     mainmod = Module('iksemel2')
