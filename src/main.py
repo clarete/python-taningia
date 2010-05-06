@@ -202,9 +202,11 @@ def load_module(module, parent):
         # namespace and type conventions are being purged and
         # underscore style is replaced by camelcase style.
 
-        custom_name = ktype['cname'].replace(module['name'] + '_', '')
+        custom_name = ktype['cname']
         custom_name = purge_lib_prefix(custom_name)
         custom_name = purge_type_sufix(custom_name)
+        if custom_name != module['name']:
+            custom_name = custom_name.replace(module['name'] + '_', '')
         custom_name = underscore_to_camel(custom_name)
 
         print " - class `%s'" % custom_name
