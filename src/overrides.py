@@ -112,7 +112,7 @@ _call_py_xmpp_client_send_and_filter (ta_xmpp_client_t *PYBINDGEN_UNUSED(client)
     pystanza = PyObject_New(PyIks, &PyIks_Type);
     pystanza->obj = stanza;
     pystanza->flags = PYBINDGEN_WRAPPER_FLAG_OBJECT_NOT_OWNED;
-    args = Py_BuildValue ("(OO)", hdata->data, stanza);
+    args = Py_BuildValue ("(OO)", hdata->data, pystanza);
     result = PyObject_CallObject (hdata->callback, args);
 
     /* Time to free stuff */
