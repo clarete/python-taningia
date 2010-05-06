@@ -114,7 +114,7 @@ def add_classes(mod):
 def add_functions(mod):
     mod.add_function('iks_make_session',
                      retval('iks*', caller_owns_return=True),
-                     [], custom_name='make_msg')
+                     [], custom_name='make_session')
 
     mod.add_function('iks_make_pres',
                      retval('iks*', caller_owns_return=True),
