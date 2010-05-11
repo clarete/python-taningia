@@ -99,6 +99,15 @@ def add_classes(mod):
         )
 
     klass.add_function_as_method(
+        'iks_insert_attrib',
+        retval('iks*', caller_owns_return=True),
+        [param('iks*', 'x', transfer_ownership=True),
+         param('const char*', 'name'),
+         param('const char*', 'value')],
+        custom_name='insert_attrib',
+        )
+
+    klass.add_function_as_method(
         'iks_name',
         retval('char*', caller_owns_return=False),
         [param('iks*', 'x', transfer_ownership=False)],
@@ -109,6 +118,57 @@ def add_classes(mod):
         'string',
         '_wrap_iks_string',
         IKS_STRING_METHOD,
+        )
+
+    klass.add_function_as_method(
+        'iks_child',
+        retval('iks*', caller_owns_return=True),
+        [param('iks*', 'x', transfer_ownership=False)],
+        custom_name='child',
+        )
+
+    klass.add_function_as_method(
+        'iks_next',
+        retval('iks*', caller_owns_return=True),
+        [param('iks*', 'x', transfer_ownership=False)],
+        custom_name='next',
+        )
+
+    klass.add_function_as_method(
+        'iks_next_tag',
+        retval('iks*', caller_owns_return=True),
+        [param('iks*', 'x', transfer_ownership=False)],
+        custom_name='next_tag',
+        )
+
+    klass.add_function_as_method(
+        'iks_prev',
+        retval('iks*', caller_owns_return=True),
+        [param('iks*', 'x', transfer_ownership=False)],
+        custom_name='prev',
+        )
+
+    klass.add_function_as_method(
+        'iks_prev_tag',
+        retval('iks*', caller_owns_return=True),
+        [param('iks*', 'x', transfer_ownership=False)],
+        custom_name='prev_tag',
+        )
+
+    klass.add_function_as_method(
+        'iks_find',
+        retval('iks*', caller_owns_return=True),
+        [param('iks*', 'x', transfer_ownership=False),
+         param('const char*', 'name')],
+        custom_name='find',
+        )
+
+    klass.add_function_as_method(
+        'iks_find_attrib',
+        retval('char*', caller_owns_return=False),
+        [param('iks*', 'x', transfer_ownership=False),
+         param('const char*', 'name')],
+        custom_name='find_attrib',
         )
 
 def add_functions(mod):
