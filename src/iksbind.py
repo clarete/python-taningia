@@ -81,7 +81,7 @@ _wrap_iks_string(PyIks *self, PyObject *args, PyObject *kwargs,
 def add_classes(mod):
     klass = mod.add_class(
         'iks',
-        memory_policy=cppclass.FreeFunctionPolicy('iks_delete'),
+        memory_policy=cppclass.FreeFunctionPolicy('(void *)'),
         custom_name='Iks')
 
     klass.add_function_as_constructor(
