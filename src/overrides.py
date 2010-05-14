@@ -180,7 +180,55 @@ _wrap_ta_xmpp_client_send_and_filter(PyTa_xmpp_client_t *self,
     }
 }'''
 
+ta_pubsub_node_create = r'''static PyObject *
+_wrap_ta_pubsub_node_create(PyObject *PYBINDGEN_UNUSED(dummy),
+                            PyObject *args, PyObject *kwargs,
+                            PyObject **return_exception)
+
+{
+    /* general stuff */
+    PyIks *py_retval;
+    PyObject *params = NULL;
+    char *from, *to, *name;
+    iks *retval = NULL;
+    const char *keywords[] = {"from", "to", "name", "params", NULL};
+
+    /* things to iterate over params dict */
+    PyObject *key, *val;
+    Py_ssize_t len = 0, pos = 0;
+    char **cparams = NULL;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "sssO", (char **) keywords,
+                                     &from, &to, &name, &params)) {
+        PyObject *exc_type, *traceback;
+        PyErr_Fetch(&exc_type, return_exception, &traceback);
+        Py_XDECREF(exc_type);
+        Py_XDECREF(traceback);
+        return NULL;
+    }
+
+    if (params && (len = PyDict_Size(params)) > 0) {
+        int cpos = 0;
+        cparams = malloc (sizeof (char**) * (len+1));
+        while (PyDict_Next(params, &pos, &key, &val)) {
+            cparams[cpos++] = PyString_AsString (key);
+            cparams[cpos++] = PyString_AsString (val);
+        }
+        cparams[cpos] = NULL;
+    }
+
+    retval = ta_pubsub_node_createv (from, to, name, (const char **) cparams);
+    free (cparams);
+    py_retval = PyObject_New(PyIks, &PyIks_Type);
+    py_retval->obj = retval;
+    py_retval->flags = PYBINDGEN_WRAPPER_FLAG_NONE;
+    return Py_BuildValue((char *) "N", py_retval);
+}
+'''
+
 OVERRIDES = {
     'ta_xmpp_client_event_connect': ta_xmpp_client_event_connect,
     'ta_xmpp_client_send_and_filter': ta_xmpp_client_send_and_filter,
+    'ta_pubsub_node_createv': '',
+    'ta_pubsub_node_create': ta_pubsub_node_create,
 }
