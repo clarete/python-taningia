@@ -198,7 +198,7 @@ _wrap_ta_pubsub_node_create(PyObject *PYBINDGEN_UNUSED(dummy),
     Py_ssize_t len = 0, pos = 0;
     char **cparams = NULL;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "sssO", (char **) keywords,
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "sss|O", (char **) keywords,
                                      &from, &to, &name, &params)) {
         PyObject *exc_type, *traceback;
         PyErr_Fetch(&exc_type, return_exception, &traceback);
@@ -218,7 +218,8 @@ _wrap_ta_pubsub_node_create(PyObject *PYBINDGEN_UNUSED(dummy),
     }
 
     retval = ta_pubsub_node_createv (from, to, name, (const char **) cparams);
-    free (cparams);
+    if (cparams)
+        free (cparams);
     py_retval = PyObject_New(PyIks, &PyIks_Type);
     py_retval->obj = retval;
     py_retval->flags = PYBINDGEN_WRAPPER_FLAG_NONE;
