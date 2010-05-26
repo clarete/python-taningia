@@ -2,7 +2,7 @@ pyexecdir = $(pythondir)
 pyexec_LTLIBRARIES = taningiamodule.la
 
 taningiamodule.c:
-	$(PYTHON) $(top_builddir)/src/main.py
+	$(PYTHON) $(top_builddir)/src/main.py $(TANINGIA_INCLUDEDIR)/taningia
 
 taningiamodule_la_SOURCES = taningiamodule.c
 

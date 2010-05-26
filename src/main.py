@@ -344,7 +344,7 @@ def load_module(module, parent):
 
     return mod
 
-def main():
+def main(includedir):
     # Building main module
     mainmod = Module('taningia')
     mainmod.add_include('<datetime.h>')
@@ -356,10 +356,9 @@ def main():
     iksbind.gen_mod(mainmod)
 
     # Time to find submodules to add. Order is important here.
-    base = os.path.expanduser("~/Work/taningia/include/taningia/")
     headers = ['error.h', 'log.h', 'iri.h', 'xmpp.h', 'atom.h', 'pubsub.h']
     for i in headers:
-        module = scan_file(os.path.join(base, i))
+        module = scan_file(os.path.join(includedir, i))
         load_module(module, mainmod)
 
     # Writing down all processed stuff and we're done!
@@ -368,4 +367,5 @@ def main():
     output.close()
 
 if __name__ == '__main__':
-    main()
+    import sys
+    main(sys.argv[1])
